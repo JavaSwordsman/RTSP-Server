@@ -8,6 +8,7 @@ import com.pedro.common.VideoCodec
 import com.pedro.common.onMainThread
 import com.pedro.common.onMainThreadHandler
 import com.pedro.common.socket.base.SocketType
+import com.pedro.common.socket.base.StreamSocket
 import com.pedro.rtsp.utils.RtpConstants
 import com.pedro.rtspserver.socket.StreamServerSocket
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ class RtspServer(
   private var clientListener: ClientListener? = null
   private var ipType = IpType.All
   private var delay: Long? = null
+  private var socketTimeout: Long = StreamSocket.DEFAULT_TIMEOUT
 
   val droppedAudioFrames: Long
     get() = synchronized(clients) {
@@ -81,6 +83,12 @@ class RtspServer(
       clients.forEach { items += it.sentVideoFrames }
       return items
     }
+  val bytesSend: Long
+    get() = synchronized(clients) {
+      var items = 0L
+      clients.forEach { items += it.bytesSend }
+      return items
+    }
 
   fun setClientListener(clientListener: ClientListener?) {
     this.clientListener = clientListener
@@ -88,6 +96,14 @@ class RtspServer(
 
   fun setDelay(delay: Long) {
     this.delay = delay
+  }
+
+  fun setSocketTimeout(timeout: Long) {
+    require(timeout >= 0) { "Socket timeout must be >= 0" }
+    socketTimeout = timeout
+    synchronized(clients) {
+      clients.forEach { it.setSocketTimeout(timeout) }
+    }
   }
 
   fun setSocketType(socketType: SocketType) {
@@ -133,7 +149,7 @@ class RtspServer(
           val clientSocket = server.accept()
           Log.i(TAG, "Client connected: ${clientSocket.host}")
           val client = ServerClient(delay, socketType, clientSocket.host, clientSocket.socket, serverIp, port,
-            serverCommandManager, this@RtspServer)
+            socketTimeout, serverCommandManager, this@RtspServer)
           client.setLogs(isEnableLogs)
           client.startClient()
           synchronized(clients) {
@@ -269,6 +285,12 @@ class RtspServer(
   fun resetDroppedVideoFrames() {
     synchronized(clients) {
       clients.forEach { it.resetDroppedVideoFrames() }
+    }
+  }
+
+  fun resetBytesSend() {
+    synchronized(clients) {
+      clients.forEach { it.resetBytesSend() }
     }
   }
 

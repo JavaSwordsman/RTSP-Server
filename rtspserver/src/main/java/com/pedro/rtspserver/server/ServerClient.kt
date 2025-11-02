@@ -22,7 +22,10 @@ class ServerClient(
   private val delay: Long? = null,
   private val socketType: SocketType,
   private val host: String,
-  private val socket: TcpStreamSocket, serverIp: String, serverPort: Int,
+  private val socket: TcpStreamSocket,
+  serverIp: String,
+  serverPort: Int,
+  private var socketTimeout: Long,
   serverCommandManager: ServerCommandManager,
   private val listener: ClientListener
 ) {
@@ -74,6 +77,8 @@ class ServerClient(
     get() = rtspSender.getSentAudioFrames()
   val sentVideoFrames: Long
     get() = rtspSender.getSentVideoFrames()
+  val bytesSend: Long
+    get() = rtspSender.bytesSend
 
   init {
     serverCommandManager.setServerInfo(serverIp, serverPort)
@@ -124,9 +129,11 @@ class ServerClient(
               socketType,
               commandManager.protocol,
               host,
+              socketTimeout,
               videoServerPorts,
               audioServerPorts,
-              videoPorts, audioPorts
+              videoPorts,
+              audioPorts
             )
             rtspSender.setSocket(socket)
             rtspSender.start()
@@ -180,6 +187,10 @@ class ServerClient(
     rtspSender.resetDroppedVideoFrames()
   }
 
+  fun resetBytesSend() {
+    rtspSender.resetBytesSend()
+  }
+
   @Throws(RuntimeException::class)
   fun resizeCache(newSize: Int) {
     rtspSender.resizeCache(newSize)
@@ -214,4 +225,8 @@ class ServerClient(
   }
 
   fun getBitrateExponentialFactor() = rtspSender.getBitrateExponentialFactor()
+
+  fun setSocketTimeout(timeout: Long) {
+    socketTimeout = timeout
+  }
 }
